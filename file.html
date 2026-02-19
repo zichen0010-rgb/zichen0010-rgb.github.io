@@ -1,77 +1,120 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Dino Run</title>
+    <title>Dino Run - Sprite Edition</title>
     <style>
-        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f7f7f7; font-family: monospace; }
-        canvas { background: white; border-bottom: 2px solid #535353; }
+        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f7f7f7; font-family: 'Courier New', monospace; }
+        canvas { background: white; border-bottom: 2px solid #535353; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .score { position: absolute; top: 20px; right: 50px; font-size: 24px; color: #535353; }
     </style>
 </head>
 <body>
-    <div style="position: absolute; top: 20px;">Score: <span id="s">0</span></div>
-    <canvas id="g"></canvas>
+    <div class="score">HI <span id="highScore">00000</span> <span id="currentScore">00000</span></div>
+    <canvas id="game"></canvas>
 
     <script>
-        const canvas = document.getElementById('g');
+        const canvas = document.getElementById('game');
         const ctx = canvas.getContext('2d');
-        const scoreEl = document.getElementById('s');
-
         canvas.width = 800; canvas.height = 200;
 
-        let score = 0, gameSpeed = 6, isGameOver = false, frame = 0, obstacles = [];
-        const dino = { x: 50, y: 150, w: 40, h: 40, dy: 0, grounded: false };
+        // --- SPRITE ASSETS ---
+        const dinoImg = new Image();
+        const cactusImg = new Image();
+        
+        // Dino Sprite (Base64)
+        dinoImg.src = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHBhdGggZD0iTTIyIDJoMTB2NGgydjJoNHYyaDJ2MTBoLTR2LTJoLTJ2LTJoLTJ2LTJoLTJWOGgtOHYyaC00djJoLTJ2Mmg2djJoMnYyaC0ydjJoLTJ2MmgtMnYyaC00di0yaC0ydi0yaC0ydi00aDJ2LTJoMnYtMmgydi0yaDJWNGgyVjJoMnptLTQgMjRoNHYyaDR2MmgydjJoLTR2LTJoLTJ2LTJoLTR2LTJ6bTE2IDBoNHYyaDR2MmgydjJoLTR2LTJoLTJ2LTJoLTR2LTJ6IiBmaWxsPSIjNTM1MzUzIi8+PC9zdmc+";
+        // Cactus Sprite (Base64)
+        cactusImg.src = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMCIgaGVpZ2h0PSI0MCI+PHBhdGggZD0iTTEyIDBoNnY0MGgtNlYwem0tOCA4aDZ2MTJINCIsIGZpbGw9IiM1MzUzNTMiLz48cGF0aCBkPSJNMjAgMTJoNnYxMmgtNlYxMnoiIGZpbGw9IiM1MzUzNTMiLz48L3N2Zz4=";
 
-        function drawDino() {
-            ctx.fillStyle = "#535353";
-            // Simple "Dino" shape using rectangles
-            ctx.fillRect(dino.x, dino.y, dino.w, dino.h); // Body
-            ctx.fillRect(dino.x + 25, dino.y - 10, 20, 20); // Head
-        }
+        // Game Variables
+        let score = 0;
+        let highScore = localStorage.getItem('dinoHighScore') || 0;
+        let gameSpeed = 6;
+        let isGameOver = false;
+        let frame = 0;
+        let obstacles = [];
 
-        function drawCactus(x, y, w, h) {
-            ctx.fillStyle = "#ff4d4d";
-            ctx.fillRect(x, y, w, h);
-        }
+        const dino = { x: 50, y: 150, w: 40, h: 40, dy: 0, jump: -12, g: 0.7, grounded: false };
+
+        // Ensure images are loaded before starting
+        let loaded = 0;
+        const start = () => { loaded++; if(loaded === 2) requestAnimationFrame(update); };
+        dinoImg.onload = start;
+        cactusImg.onload = start;
 
         function update() {
             if (isGameOver) return;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             frame++;
 
+            // Floor Line
+            ctx.strokeStyle = "#535353";
+            ctx.beginPath(); ctx.moveTo(0, 190); ctx.lineTo(800, 190); ctx.stroke();
+
             // Physics
-            dino.dy += 0.6; // gravity
+            dino.dy += dino.g;
             dino.y += dino.dy;
             if (dino.y > 150) { dino.y = 150; dino.dy = 0; dino.grounded = true; }
 
-            drawDino();
+            // Dino Animation (Wobble)
+            let walk = (dino.grounded && Math.floor(frame/6) % 2 === 0) ? 2 : 0;
+            ctx.drawImage(dinoImg, dino.x, dino.y + walk, dino.w, dino.h);
 
-            // Spawn
-            if (frame % 100 === 0) obstacles.push({ x: 800, y: 160, w: 20, h: 40 });
+            // Obstacle logic
+            if (frame % 120 === 0) obstacles.push({ x: 800, w: 25, h: 40 });
 
-            for (let i = obstacles.length - 1; i >= 0; i--) {
-                let o = obstacles[i];
+            obstacles.forEach((o, i) => {
                 o.x -= gameSpeed;
-                drawCactus(o.x, o.y, o.w, o.h);
+                ctx.drawImage(cactusImg, o.x, 155, o.w, o.h);
 
-                // Collision
-                if (dino.x < o.x + o.w && dino.x + dino.w > o.x && dino.y < o.y + o.h && dino.y + dino.h > o.y) {
-                    isGameOver = true;
-                    alert("Game Over! Score: " + score);
-                    location.reload(); 
+                // Collision Detection
+                if (dino.x < o.x + o.w - 5 && dino.x + dino.w - 5 > o.x && dino.y + dino.h > 155) {
+                    gameOver();
                 }
 
                 if (o.x + o.w < 0) {
                     obstacles.splice(i, 1);
                     score++;
-                    gameSpeed += 0.2;
-                    scoreEl.innerText = score;
+                    gameSpeed += 0.1;
+                    document.getElementById('currentScore').innerText = score.toString().padStart(5, '0');
                 }
-            }
+            });
+
             requestAnimationFrame(update);
         }
 
-        window.onkeydown = (e) => { if (e.code === 'Space' && dino.grounded) { dino.dy = -12; dino.grounded = false; } };
-        update();
+        function gameOver() {
+            isGameOver = true;
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('dinoHighScore', highScore);
+            }
+            ctx.fillStyle = "rgba(255,255,255,0.8)";
+            ctx.fillRect(0,0,canvas.width, canvas.height);
+            ctx.fillStyle = "#535353";
+            ctx.font = "30px Courier";
+            ctx.textAlign = "center";
+            ctx.fillText("G A M E  O V E R", canvas.width/2, 100);
+            ctx.font = "16px Courier";
+            ctx.fillText("PRESS SPACE TO RESTART", canvas.width/2, 130);
+        }
+
+        function restart() {
+            score = 0; gameSpeed = 6; obstacles = []; isGameOver = false;
+            dino.y = 150; dino.dy = 0;
+            document.getElementById('currentScore').innerText = "00000";
+            document.getElementById('highScore').innerText = highScore.toString().padStart(5, '0');
+            update();
+        }
+
+        window.onkeydown = (e) => {
+            if (e.code === 'Space') {
+                if (isGameOver) restart();
+                else if (dino.grounded) { dino.dy = dino.jump; dino.grounded = false; }
+            }
+        };
+
+        document.getElementById('highScore').innerText = highScore.toString().padStart(5, '0');
     </script>
 </body>
 </html>
