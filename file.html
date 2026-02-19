@@ -2,11 +2,14 @@
 
 <html>
 <head>
-<title>Dino Evolution</title>
+<title>Dino Evolution + Reset</title>
 <style>
-body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f7f7f7; font-family: 'Courier New', monospace; overflow: hidden; }
+body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f7f7f7; font-family: 'Courier New', monospace; overflow: hidden; flex-direction: column; }
 #gameCanvas { background: #fff; border-bottom: 2px solid #535353; transition: background-color 0.5s; }
 .ui { position: absolute; top: 20px; font-size: 20px; color: #535353; width: 580px; display: flex; justify-content: space-between; z-index: 10; }
+.controls { margin-top: 10px; z-index: 20; }
+button { cursor: pointer; background: #535353; color: white; border: none; padding: 5px 10px; font-family: 'Courier New', monospace; border-radius: 3px; }
+button:hover { background: #ff4d4d; }
 </style>
 </head>
 <body>
@@ -15,6 +18,9 @@ body { margin: 0; display: flex; justify-content: center; align-items: center; h
 <span id="score">00000</span>
 </div>
 <canvas id="gameCanvas"></canvas>
+<div class="controls">
+<button onclick="resetHighScore()">RESET HIGH SCORE</button>
+</div>
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -24,6 +30,12 @@ let obstacles = [], clouds = [], stars = [];
 let highScore = localStorage.getItem('dinoHI') || 0;
 document.getElementById('hi').innerText = highScore.toString().padStart(5, '0');
 const dino = { x: 50, y: 110, w: 40, h: 40, dy: 0, jump: -10, g: 0.6, grounded: false, isCrouching: false };
+function resetHighScore() {
+localStorage.setItem('dinoHI', 0);
+highScore = 0;
+document.getElementById('hi').innerText = "00000";
+location.reload();
+}
 function spawnCloud() { clouds.push({ x: 600, y: Math.random() * 40 + 10, w: 40, speed: 0.5 }); }
 function spawnStar() { stars.push({ x: 600, y: Math.random() * 80, size: Math.random() * 2 }); }
 function drawSky(isNight) {
