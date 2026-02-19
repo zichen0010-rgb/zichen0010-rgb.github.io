@@ -1,111 +1,103 @@
-const canvas = document.getElementById('gameCanvas');
+const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
+const scoreElement = document.getElementById('score');
 
 canvas.width = 800;
 canvas.height = 200;
 
-// Load Images (Using SVG Data URIs for instant loading)
-const dinoImg = new Image();
-dinoImg.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PHBhdGggZD0iTTMwIDZoLTR2Mmg0VjZ6bS00IDloLTh2Mmg4di0yem0tNCAyaC0ydjJoMnYtMnpNMTAgMjFoNHYyaDR2MmgydjJoMnYyaDR2Mmg0di0yaDJ2LTJoMnYtMmg0di0yaDJ2LTJoMnYtMmg0di0yaDJ2LTJoMnYtMmgtNHYyaC0ydjJoLTJ2MmgtNHYyaC0ydjJoLTJ2MmgtOHYtMmgtMnYtMmgtMnYtMmgtMnYtMmgtNHYyem0zMCAwaDR2Mmg0di0yaC00di0yek0xMCAzM2g0djJoNHYyaDJ2MmgydjJoNHYyaDR2LTJoMnYtMmgydi0yaDR2LTJoMnYtMmg0di0yaDJ2LTJoMnYtMmgtNHYyaC0ydjJoLTJ2MmgtNHYyaC0ydjJoLTJ2MmgtOHYtMmgtMnYtMmgtMnYtMmgtMnYtMmgtNHYyeiIgZmlsbD0iIzUzNTM1MyIvPjwvc3ZnPg==';
-
-const cactusImg = new Image();
-cactusImg.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCI+PHBhdGggZD0iTTI0IDR2NDBoLTRWNGg0em0tOCA4djEyaC00VjEyOGg0em0xNiA0djEyaDRWMTZoLTR6bS04IDhoNHYyaC00di0yem04IDRoNHYyaC00di0yek0xMiAxNmgtNHYyaDR2LTJ6bTI0IDRoLTR2Mmg0di0yeiIgZmlsbD0iIzUzNTM1MyIvPjwvc3ZnPg==';
-
+// Game State
 let score = 0;
-let gameSpeed = 5;
+let gameSpeed = 6;
 let isGameOver = false;
-let animationFrame = 0; // For "wobble" effect/animation
+let obstacles = [];
+let frame = 0;
 
-const dino = {
-    x: 50,
-    y: 150,
-    width: 44,
-    height: 44,
-    dy: 0,
-    jumpForce: 12,
-    gravity: 0.6,
-    grounded: false
-};
+// Image Assets
+const dinoImg = new Image();
+const cactusImg = new Image();
 
-const obstacles = [];
+// Simple counter to track loading
+let imagesLoaded = 0;
+const totalImages = 2;
 
-function spawnObstacle() {
-    obstacles.push({
-        x: canvas.width,
-        y: canvas.height - 40,
-        width: 25,
-        height: 40
-    });
-}
-
-function jump() {
-    if (dino.grounded) {
-        dino.dy = -dino.jumpForce;
-        dino.grounded = false;
+function onImageLoad() {
+    imagesLoaded++;
+    if (imagesLoaded === totalImages) {
+        // ONLY start the game once all images are ready
+        update();
     }
-    if (isGameOver) restart();
 }
 
+dinoImg.onload = onImageLoad;
+cactusImg.onload = onImageLoad;
+
+// Set the sources (I've used shorter, cleaner SVG data)
+dinoImg.src = "data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'><rect x='20' y='0' width='20' height='20' fill='%23535353'/><rect x='0' y='10' width='20' height='20' fill='%23535353'/><rect x='10' y='30' width='10' height='10' fill='%23535353'/><rect x='30' y='30' width='10' height='10' fill='%23535353'/></svg>";
+
+cactusImg.src = "data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='40'><rect x='5' y='0' width='10' height='40' fill='%23535353'/><rect x='0' y='10' width='5' height='15' fill='%23535353'/><rect x='15' y='15' width='5' height='15' fill='%23535353'/></svg>";
+
+// Physics & Dino
+const GRAVITY = 0.6;
+const JUMP_FORCE = -12;
+const GROUND_Y = 150;
+
+const dino = { x: 50, y: GROUND_Y, w: 40, h: 40, dy: 0, grounded: false };
+
+// Input
+function jump() {
+    if (isGameOver) restart();
+    else if (dino.grounded) { dino.dy = JUMP_FORCE; dino.grounded = false; }
+}
 window.addEventListener('keydown', (e) => { if (e.code === 'Space') jump(); });
+canvas.addEventListener('mousedown', jump);
 
 function restart() {
-    score = 0;
-    obstacles.length = 0;
-    isGameOver = false;
-    gameSpeed = 5;
-    animate();
+    score = 0; gameSpeed = 6; obstacles = []; isGameOver = false;
+    dino.y = GROUND_Y; dino.dy = 0;
+    update();
 }
 
-function animate() {
+function update() {
     if (isGameOver) return;
-    requestAnimationFrame(animate);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    animationFrame++;
+    frame++;
 
-    // Physics
-    dino.dy += dino.gravity;
+    // Gravity
+    dino.dy += GRAVITY;
     dino.y += dino.dy;
+    if (dino.y > GROUND_Y) { dino.y = GROUND_Y; dino.dy = 0; dino.grounded = true; }
 
-    if (dino.y + dino.height > canvas.height) {
-        dino.y = canvas.height - dino.height;
-        dino.dy = 0;
-        dino.grounded = true;
-    }
-
-    // DRAW DINO (With a slight "running" bounce)
-    let runBoost = (dino.grounded && Math.floor(animationFrame / 10) % 2 === 0) ? 2 : 0;
-    ctx.drawImage(dinoImg, dino.x, dino.y + runBoost, dino.width, dino.height);
+    // Draw Dino (wobble for run effect)
+    let runY = (dino.grounded && Math.floor(frame / 8) % 2 === 0) ? dino.y - 2 : dino.y;
+    ctx.drawImage(dinoImg, dino.x, runY, dino.w, dino.h);
 
     // Obstacles
-    if (Math.random() < 0.01) spawnObstacle();
+    if (frame % 100 === 0) obstacles.push({ x: canvas.width, y: GROUND_Y + 5, w: 20, h: 35 });
 
-    obstacles.forEach((obs, index) => {
-        obs.x -= gameSpeed;
-        
-        // DRAW CACTUS
-        ctx.drawImage(cactusImg, obs.x, obs.y, obs.width, obs.height);
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+        let o = obstacles[i];
+        o.x -= gameSpeed;
+        ctx.drawImage(cactusImg, o.x, o.y, o.w, o.h);
 
         // Collision
-        if (dino.x < obs.x + obs.width &&
-            dino.x + dino.width > obs.x &&
-            dino.y < obs.y + obs.height &&
-            dino.y + dino.height > obs.y) {
+        if (dino.x < o.x + o.w && dino.x + dino.w > o.x && runY < o.y + o.h && runY + dino.h > o.y) {
             isGameOver = true;
-            ctx.fillStyle = '#535353';
-            ctx.font = 'bold 24px Courier';
-            ctx.fillText('G A M E  O V E R', 300, 100);
         }
 
-        if (obs.x + obs.width < 0) {
-            obstacles.splice(index, 1);
+        if (o.x + o.w < 0) {
+            obstacles.splice(i, 1);
             score++;
             gameSpeed += 0.1;
+            scoreElement.innerText = score.toString().padStart(5, '0');
         }
-    });
+    }
 
-    ctx.fillStyle = '#535353';
-    ctx.font = '20px Courier';
-    ctx.fillText(score.toString().padStart(5, '0'), 700, 30);
+    if (isGameOver) {
+        ctx.fillStyle = "#535353";
+        ctx.font = "bold 20px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("GAME OVER - CLICK TO RESTART", canvas.width/2, canvas.height/2);
+    } else {
+        requestAnimationFrame(update);
+    }
 }
-
-animate();
