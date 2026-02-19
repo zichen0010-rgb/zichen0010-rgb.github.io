@@ -18,6 +18,9 @@ button:hover { background: #ff4d4d; }
 <span id="score">00000</span>
 </div>
 <canvas id="gameCanvas"></canvas>
+<div style="margin-top: 10px;">
+<button onclick="localStorage.setItem('dinoHI', 0); location.reload();" style="cursor: pointer; background: #535353; color: white; border: none; padding: 10px; font-family: Courier;"> RESET HIGH SCORE </button>
+</div>
 <div class="controls">
 <button onclick="resetHighScore()">RESET HIGH SCORE</button>
 </div>
