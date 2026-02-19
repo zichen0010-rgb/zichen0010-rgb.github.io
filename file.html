@@ -18,108 +18,118 @@
 
     <script>
         const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = 600; canvas.height = 150;
+const ctx = canvas.getContext('2d');
+canvas.width = 600; canvas.height = 150;
 
-        let score = 0, gameSpeed = 5, isGameOver = false, frame = 0, obstacles = [];
-        let highScore = localStorage.getItem('dinoHI') || 0;
-        document.getElementById('hi').innerText = highScore.toString().padStart(5, '0');
+let score = 0, gameSpeed = 5, isGameOver = false, frame = 0;
+let obstacles = [];
+let clouds = []; // New background array
 
-        const dino = {
-            x: 50, y: 110, w: 40, h: 40,
-            dy: 0, jump: -10, g: 0.6,
-            grounded: false, isCrouching: false
-        };
+const dino = {
+    x: 50, y: 110, w: 40, h: 40,
+    dy: 0, jump: -10, g: 0.6,
+    grounded: false, isCrouching: false
+};
 
-        function drawDino() {
-            ctx.fillStyle = "#535353";
-            let displayH = dino.isCrouching ? 25 : 40;
-            let displayY = dino.isCrouching ? dino.y + 15 : dino.y;
-            
-            // Draw Dino Body
-            ctx.fillRect(dino.x, displayY, dino.w, displayH);
-            // Draw Eye
-            ctx.fillStyle = "white";
-            ctx.fillRect(dino.x + 30, displayY + 5, 4, 4);
-        }
+// --- Background Logic ---
+function spawnCloud() {
+    clouds.push({
+        x: 600,
+        y: Math.random() * 50 + 20, // Random height in the sky
+        w: 40 + Math.random() * 30, // Random width
+        speed: 1 + Math.random() * 1 // Move slower than the ground
+    });
+}
 
-        function update() {
-            if (isGameOver) return;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            frame++;
+function drawBackground() {
+    ctx.fillStyle = "#eee"; // Light grey for clouds
+    clouds.forEach((c, i) => {
+        c.x -= c.speed;
+        // Draw a simple "bubbly" cloud using 3 circles/rects
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, 10, 0, Math.PI * 2);
+        ctx.arc(c.x + 15, c.y - 5, 12, 0, Math.PI * 2);
+        ctx.arc(c.x + 30, c.y, 10, 0, Math.PI * 2);
+        ctx.fill();
 
-            // Physics
-            dino.dy += dino.g;
-            dino.y += dino.dy;
-            if (dino.y > 110) { dino.y = 110; dino.dy = 0; dino.grounded = true; }
+        if (c.x + 50 < 0) clouds.splice(i, 1);
+    });
+}
 
-            drawDino();
+function drawDino() {
+    ctx.fillStyle = "#535353";
+    let displayH = dino.isCrouching ? 25 : 40;
+    let displayY = dino.isCrouching ? dino.y + 15 : dino.y;
+    ctx.fillRect(dino.x, displayY, dino.w, displayH);
+    ctx.fillStyle = "white";
+    ctx.fillRect(dino.x + 30, displayY + 5, 4, 4);
+}
 
-            // Spawn Obstacles (Cactus or Bird)
-            if (frame % 100 === 0) {
-                let type = Math.random() > 0.3 ? 'cactus' : 'bird';
-                obstacles.push({
-                    x: 600,
-                    y: type === 'bird' ? 80 : 120,
-                    w: 20,
-                    h: type === 'bird' ? 20 : 30,
-                    type: type
-                });
-            }
+function update() {
+    if (isGameOver) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    frame++;
 
-            for (let i = obstacles.length - 1; i >= 0; i--) {
-                let o = obstacles[i];
-                o.x -= gameSpeed;
-                
-                // Draw Obstacle
-                ctx.fillStyle = o.type === 'bird' ? "#ff0000" : "#535353";
-                ctx.fillRect(o.x, o.y, o.w, o.h);
+    // 1. Draw Background First (behind everything)
+    if (frame % 80 === 0) spawnCloud();
+    drawBackground();
 
-                // Collision Detection
-                let dH = dino.isCrouching ? 25 : 40;
-                let dY = dino.isCrouching ? dino.y + 15 : dino.y;
+    // 2. Ground Line
+    ctx.strokeStyle = "#dbdbdb";
+    ctx.beginPath(); ctx.moveTo(0, 140); ctx.lineTo(600, 140); ctx.stroke();
 
-                if (dino.x < o.x + o.w && dino.x + dino.w > o.x && dY < o.y + o.h && dY + dH > o.y) {
-                    endGame();
-                }
+    // 3. Physics
+    dino.dy += dino.g;
+    dino.y += dino.dy;
+    if (dino.y > 110) { dino.y = 110; dino.dy = 0; dino.grounded = true; }
 
-                if (o.x + o.w < 0) {
-                    obstacles.splice(i, 1);
-                    score++;
-                    gameSpeed += 0.05;
-                    document.getElementById('score').innerText = score.toString().padStart(5, '0');
-                }
-            }
-            requestAnimationFrame(update);
-        }
+    drawDino();
 
-        function endGame() {
+    // 4. Obstacles
+    if (frame % 100 === 0) {
+        let type = Math.random() > 0.3 ? 'cactus' : 'bird';
+        obstacles.push({
+            x: 600,
+            y: type === 'bird' ? 80 : 120,
+            w: 20,
+            h: type === 'bird' ? 20 : 30,
+            type: type
+        });
+    }
+
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+        let o = obstacles[i];
+        o.x -= gameSpeed;
+        ctx.fillStyle = o.type === 'bird' ? "#ff0000" : "#535353";
+        ctx.fillRect(o.x, o.y, o.w, o.h);
+
+        let dH = dino.isCrouching ? 25 : 40;
+        let dY = dino.isCrouching ? dino.y + 15 : dino.y;
+        if (dino.x < o.x + o.w && dino.x + dino.w > o.x && dY < o.y + o.h && dY + dH > o.y) {
             isGameOver = true;
-            if (score > highScore) {
-                highScore = score;
-                localStorage.setItem('dinoHI', highScore);
-            }
-            ctx.fillStyle = "rgba(0,0,0,0.1)";
-            ctx.fillRect(0,0,600,150);
-            ctx.fillStyle = "#535353";
-            ctx.font = "20px Arial";
-            ctx.textAlign = "center";
-            ctx.fillText("G A M E  O V E R", 300, 75);
         }
 
-        // Controls
-        window.onkeydown = (e) => {
-            if (e.code === 'Space' || e.code === 'ArrowUp') {
-                if (isGameOver) location.reload();
-                if (dino.grounded) { dino.dy = dino.jump; dino.grounded = false; }
-            }
-            if (e.code === 'ArrowDown') dino.isCrouching = true;
-        };
-        window.onkeyup = (e) => {
-            if (e.code === 'ArrowDown') dino.isCrouching = false;
-        };
+        if (o.x + o.w < 0) {
+            obstacles.splice(i, 1);
+            score++;
+            gameSpeed += 0.05;
+            document.getElementById('score').innerText = score.toString().padStart(5, '0');
+        }
+    }
+    requestAnimationFrame(update);
+}
 
-        update();
+// Controls
+window.onkeydown = (e) => {
+    if (e.code === 'Space' || e.code === 'ArrowUp') {
+        if (isGameOver) location.reload();
+        if (dino.grounded) { dino.dy = dino.jump; dino.grounded = false; }
+    }
+    if (e.code === 'ArrowDown') dino.isCrouching = true;
+};
+window.onkeyup = (e) => { if (e.code === 'ArrowDown') dino.isCrouching = false; };
+
+update();
     </script>
 </body>
 </html>
