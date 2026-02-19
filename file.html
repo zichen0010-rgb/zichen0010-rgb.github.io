@@ -1,141 +1,106 @@
 <!DOCTYPE html>
+
 <html>
 <head>
-    <title>Dino Chrome Clone</title>
-    <style>
-        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f7f7f7; font-family: 'Courier New', Courier, monospace; overflow: hidden; }
-        #gameCanvas { background: #fff; border-bottom: 2px solid #535353; }
-        .ui { position: absolute; top: 20px; font-size: 20px; color: #535353; width: 600px; display: flex; justify-content: space-between; }
-    </style>
+<title>Dino Evolution</title>
+<style>
+body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f7f7f7; font-family: 'Courier New', monospace; overflow: hidden; }
+#gameCanvas { background: #fff; border-bottom: 2px solid #535353; transition: background-color 0.5s; }
+.ui { position: absolute; top: 20px; font-size: 20px; color: #535353; width: 580px; display: flex; justify-content: space-between; z-index: 10; }
+</style>
 </head>
 <body>
-
-    <div class="ui">
-        <span>HI <b id="hi">00000</b></span>
-        <span id="score">00000</span>
-    </div>
-    <canvas id="gameCanvas"></canvas>
-
-    <script>
-   const canvas = document.getElementById('gameCanvas');
+<div class="ui">
+<span>HI <b id="hi">00000</b></span>
+<span id="score">00000</span>
+</div>
+<canvas id="gameCanvas"></canvas>
+<script>
+const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 canvas.width = 600; canvas.height = 150;
-
-let score = 0, gameSpeed = 5, isGameOver = false, frame = 0;
+let score = 0, gameSpeed = 5, isGameOver = false, frame = 0, isGameStarted = false;
 let obstacles = [], clouds = [], stars = [];
-
-const dino = {
-    x: 50, y: 110, w: 40, h: 40,
-    dy: 0, jump: -10, g: 0.6,
-    grounded: false, isCrouching: false
-};
-
-// --- Background Logic ---
-function spawnCloud() {
-    clouds.push({ x: 600, y: Math.random() * 40 + 20, w: 40, speed: 1 });
+let highScore = localStorage.getItem('dinoHI') || 0;
+document.getElementById('hi').innerText = highScore.toString().padStart(5, '0');
+const dino = { x: 50, y: 110, w: 40, h: 40, dy: 0, jump: -10, g: 0.6, grounded: false, isCrouching: false };
+function spawnCloud() { clouds.push({ x: 600, y: Math.random() * 40 + 10, w: 40, speed: 0.5 }); }
+function spawnStar() { stars.push({ x: 600, y: Math.random() * 80, size: Math.random() * 2 }); }
+function drawSky(isNight) {
+canvas.style.backgroundColor = isNight ? "#222" : "#fff";
+if (isNight) {
+if (frame % 15 === 0) spawnStar();
+ctx.fillStyle = "#fff";
+stars.forEach((s, i) => { s.x -= 0.3; ctx.fillRect(s.x, s.y, s.size, s.size); if (s.x < 0) stars.splice(i, 1); });
+} else {
+if (frame % 100 === 0) spawnCloud();
+ctx.fillStyle = "#eee";
+clouds.forEach((c, i) => {
+c.x -= c.speed;
+ctx.beginPath(); ctx.arc(c.x, c.y, 8, 0, Math.PI * 2); ctx.arc(c.x + 10, c.y - 4, 10, 0, Math.PI * 2); ctx.arc(c.x + 20, c.y, 8, 0, Math.PI * 2); ctx.fill();
+if (c.x + 40 < 0) clouds.splice(i, 1);
+});
 }
-
-function spawnStar() {
-    stars.push({ x: 600, y: Math.random() * 80, size: Math.random() * 2 });
 }
-
-function drawSky() {
-    // Phase 1: Determine Color (Day = #fff, Night = #222)
-    let isNight = (score >= 100 && score < 200) || (score >= 300 && score < 400);
-    
-    // Smooth background color change
-    canvas.style.backgroundColor = isNight ? "#222" : "#fff";
-    ctx.fillStyle = isNight ? "#222" : "#fff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    if (isNight) {
-        if (frame % 10 === 0) spawnStar();
-        ctx.fillStyle = "#fff";
-        stars.forEach((s, i) => {
-            s.x -= 0.5; // Stars move very slowly
-            ctx.fillRect(s.x, s.y, s.size, s.size);
-            if (s.x < 0) stars.splice(i, 1);
-        });
-    } else {
-        // Only draw clouds during the day
-        if (frame % 80 === 0) spawnCloud();
-        ctx.fillStyle = "#eee";
-        clouds.forEach((c, i) => {
-            c.x -= c.speed;
-            ctx.beginPath();
-            ctx.arc(c.x, c.y, 10, 0, Math.PI * 2);
-            ctx.arc(c.x + 15, c.y - 5, 12, 0, Math.PI * 2);
-            ctx.arc(c.x + 30, c.y, 10, 0, Math.PI * 2);
-            ctx.fill();
-            if (c.x + 50 < 0) clouds.splice(i, 1);
-        });
-    }
-}
-
 function drawDino(isNight) {
-    ctx.fillStyle = isNight ? "#fff" : "#535353"; // Dino turns white at night
-    let displayH = dino.isCrouching ? 25 : 40;
-    let displayY = dino.isCrouching ? dino.y + 15 : dino.y;
-    ctx.fillRect(dino.x, displayY, dino.w, displayH);
+ctx.fillStyle = isNight ? "#eee" : "#535353";
+let dH = dino.isCrouching ? 25 : 40;
+let dY = dino.isCrouching ? dino.y + 15 : dino.y;
+ctx.fillRect(dino.x, dY, dino.w, dH);
+ctx.fillStyle = isNight ? "#222" : "white";
+ctx.fillRect(dino.x + 30, dY + 5, 4, 4);
 }
-
+function drawStartScreen() {
+ctx.clearRect(0, 0, canvas.width, canvas.height);
+ctx.fillStyle = "#535353"; ctx.textAlign = "center";
+ctx.font = "bold 24px Courier"; ctx.fillText("DINO EVOLUTION", 300, 60);
+ctx.font = "16px Courier"; ctx.fillText("Press SPACE to Start", 300, 90);
+ctx.font = "12px Courier"; ctx.fillText("UP to Jump | DOWN to Duck", 300, 115);
+drawDino(false);
+}
 function update() {
-    if (isGameOver) return;
-    frame++;
-
-    let isNight = (score >= 100 && score < 200) || (score >= 300 && score < 400);
-    drawSky();
-
-    // Ground Line
-    ctx.strokeStyle = isNight ? "#444" : "#dbdbdb";
-    ctx.beginPath(); ctx.moveTo(0, 140); ctx.lineTo(600, 140); ctx.stroke();
-
-    // Physics
-    dino.dy += dino.g;
-    dino.y += dino.dy;
-    if (dino.y > 110) { dino.y = 110; dino.dy = 0; dino.grounded = true; }
-
-    drawDino(isNight);
-
-    // Obstacles
-    if (frame % 100 === 0) {
-        let type = Math.random() > 0.3 ? 'cactus' : 'bird';
-        obstacles.push({ x: 600, y: type === 'bird' ? 80 : 120, w: 20, h: type === 'bird' ? 20 : 30, type: type });
-    }
-
-    for (let i = obstacles.length - 1; i >= 0; i--) {
-        let o = obstacles[i];
-        o.x -= gameSpeed;
-        ctx.fillStyle = o.type === 'bird' ? "#ff4d4d" : (isNight ? "#ccc" : "#535353");
-        ctx.fillRect(o.x, o.y, o.w, o.h);
-
-        let dH = dino.isCrouching ? 25 : 40;
-        let dY = dino.isCrouching ? dino.y + 15 : dino.y;
-        if (dino.x < o.x + o.w && dino.x + dino.w > o.x && dY < o.y + o.h && dY + dH > o.y) {
-            isGameOver = true;
-            document.body.style.backgroundColor = "#f7f7f7"; // Reset body color on fail
-        }
-
-        if (o.x + o.w < 0) {
-            obstacles.splice(i, 1);
-            score++;
-            gameSpeed += 0.05;
-            document.getElementById('score').innerText = score.toString().padStart(5, '0');
-        }
-    }
-    requestAnimationFrame(update);
+if (!isGameStarted) { drawStartScreen(); return; }
+if (isGameOver) return;
+ctx.clearRect(0, 0, canvas.width, canvas.height);
+frame++;
+let isNight = (score % 200 >= 100);
+drawSky(isNight);
+ctx.strokeStyle = isNight ? "#444" : "#dbdbdb";
+ctx.beginPath(); ctx.moveTo(0, 140); ctx.lineTo(600, 140); ctx.stroke();
+dino.dy += dino.g; dino.y += dino.dy;
+if (dino.y > 110) { dino.y = 110; dino.dy = 0; dino.grounded = true; }
+drawDino(isNight);
+if (frame % 90 === 0) {
+let type = Math.random() > 0.3 ? 'cactus' : 'bird';
+obstacles.push({ x: 600, y: type === 'bird' ? 102 : 115, w: 25, h: type === 'bird' ? 15 : 25, type: type });
 }
-
+for (let i = obstacles.length - 1; i >= 0; i--) {
+let o = obstacles[i]; o.x -= gameSpeed;
+ctx.fillStyle = o.type === 'bird' ? "#ff4d4d" : (isNight ? "#ccc" : "#535353");
+ctx.fillRect(o.x, o.y, o.w, o.h);
+if (o.type === 'bird') { let wingY = Math.sin(frame * 0.2) * 8; ctx.fillRect(o.x + 5, o.y + wingY, 10, 2); }
+let dH = dino.isCrouching ? 25 : 40; let dY = dino.isCrouching ? dino.y + 15 : dino.y;
+if (dino.x < o.x + o.w && dino.x + dino.w > o.x && dY < o.y + o.h && dY + dH > o.y) {
+isGameOver = true; if (score > highScore) localStorage.setItem('dinoHI', score);
+}
+if (o.x + o.w < 0) { obstacles.splice(i, 1); score++; gameSpeed += 0.04; document.getElementById('score').innerText = score.toString().padStart(5, '0'); }
+}
+if (isGameOver) {
+ctx.fillStyle = isNight ? "white" : "#535353"; ctx.textAlign = "center";
+ctx.font = "bold 20px Courier"; ctx.fillText("G A M E  O V E R", 300, 70);
+ctx.font = "14px Courier"; ctx.fillText("Press Space to Restart", 300, 95);
+} else { requestAnimationFrame(update); }
+}
 window.onkeydown = (e) => {
-    if (e.code === 'Space' || e.code === 'ArrowUp') {
-        if (isGameOver) location.reload();
-        if (dino.grounded) { dino.dy = dino.jump; dino.grounded = false; }
-    }
-    if (e.code === 'ArrowDown') dino.isCrouching = true;
+if (e.code === 'Space' || e.code === 'ArrowUp') {
+if (!isGameStarted) { isGameStarted = true; update(); }
+else if (isGameOver) { location.reload(); }
+else if (dino.grounded) { dino.dy = dino.jump; dino.grounded = false; }
+}
+if (e.code === 'ArrowDown') dino.isCrouching = true;
 };
 window.onkeyup = (e) => { if (e.code === 'ArrowDown') dino.isCrouching = false; };
-
-update();
-    </script>
+drawStartScreen();
+</script>
 </body>
 </html>
