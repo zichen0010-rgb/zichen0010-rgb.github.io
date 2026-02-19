@@ -1,19 +1,97 @@
-// The Physics Constants
-const GRAVITY = 0.6;
-const JUMP_FORCE = -12;
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Minimal Dino Clone</title>
+    <style>
+        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f0f0f0; font-family: Courier, monospace; }
+        canvas { background: #fff; border-bottom: 2px solid #535353; }
+        .info { position: absolute; top: 20px; color: #535353; }
+    </style>
+</head>
+<body>
+    <div class="info">Press SPACE to Jump</div>
+    <canvas id="gameCanvas"></canvas>
 
-let dinoY = 0;
-let velocity = 0;
-let isJumping = false;
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 600; canvas.height = 200;
 
-function update() {
-  if (isJumping) {
-    velocity += GRAVITY; // Gravity pulls the Dino down
-    dinoY += velocity;   // Update position based on velocity
-    
-    if (dinoY > 0) {     // Check if Dino hit the ground
-      dinoY = 0;
-      isJumping = false;
-    }
-  }
-}
+        let score = 0;
+        let gameSpeed = 5;
+        let isGameOver = false;
+
+        const dino = { x: 50, y: 150, w: 40, h: 40, dy: 0, jumpForce: 12, gravity: 0.6, grounded: false };
+        const obstacles = [];
+
+        function spawnObstacle() {
+            if (Math.random() < 0.02) {
+                obstacles.push({ x: canvas.width, y: 160, w: 20, h: 30 });
+            }
+        }
+
+        function update() {
+            if (isGameOver) return;
+
+            // Physics
+            if (dino.y + dino.h < canvas.height) {
+                dino.dy += dino.gravity;
+                dino.grounded = false;
+            } else {
+                dino.dy = 0;
+                dino.grounded = true;
+                dino.y = canvas.height - dino.h;
+            }
+
+            // Controls
+            window.onkeydown = (e) => { if (e.code === 'Space' && dino.grounded) dino.dy = -dino.jumpForce; };
+
+            dino.y += dino.dy;
+
+            // Obstacle Logic
+            obstacles.forEach((obs, index) => {
+                obs.x -= gameSpeed;
+                if (obs.x + obs.w < 0) {
+                    obstacles.splice(index, 1);
+                    score++;
+                }
+
+                // Collision Check (AABB)
+                if (dino.x < obs.x + obs.w && dino.x + dino.w > obs.x &&
+                    dino.y < obs.y + obs.h && dino.y + dino.h > obs.y) {
+                    isGameOver = true;
+                }
+            });
+
+            spawnObstacle();
+            gameSpeed += 0.001;
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw Dino
+            ctx.fillStyle = '#535353';
+            ctx.fillRect(dino.x, dino.y, dino.w, dino.h);
+
+            // Draw Obstacles
+            ctx.fillStyle = '#ff4d4d';
+            obstacles.forEach(obs => ctx.fillRect(obs.x, obs.y, obs.w, obs.h));
+
+            // Draw Score
+            ctx.fillStyle = '#535353';
+            ctx.fillText(`SCORE: ${score}`, 530, 20);
+
+            if (isGameOver) ctx.fillText("GAME OVER - Refresh to Restart", 220, 100);
+        }
+
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        loop();
+    </script>
+</body>
+</html>
