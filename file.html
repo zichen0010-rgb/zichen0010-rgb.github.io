@@ -1,97 +1,131 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Minimal Dino Clone</title>
+    <meta charset="UTF-8">
+    <title>Simple Dino Run</title>
     <style>
-        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f0f0f0; font-family: Courier, monospace; }
-        canvas { background: #fff; border-bottom: 2px solid #535353; }
-        .info { position: absolute; top: 20px; color: #535353; }
+        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f0f0f0; font-family: sans-serif; }
+        canvas { background: white; border-bottom: 2px solid #555; }
+        .info { position: absolute; top: 10px; text-align: center; width: 100%; }
     </style>
 </head>
 <body>
-    <div class="info">Press SPACE to Jump</div>
+    <div class="info">Press <b>Space</b> or <b>Tap</b> to Jump</div>
     <canvas id="gameCanvas"></canvas>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        canvas.width = 600; canvas.height = 200;
 
+        canvas.width = 800;
+        canvas.height = 200;
+
+        // Game State
         let score = 0;
         let gameSpeed = 5;
         let isGameOver = false;
 
-        const dino = { x: 50, y: 150, w: 40, h: 40, dy: 0, jumpForce: 12, gravity: 0.6, grounded: false };
-        const obstacles = [];
+        // Dino Object
+        const dino = {
+            x: 50,
+            y: 150,
+            width: 40,
+            height: 40,
+            dy: 0,
+            jumpForce: 12,
+            gravity: 0.6,
+            grounded: false
+        };
 
+        // Obstacles
+        const obstacles = [];
+        
         function spawnObstacle() {
-            if (Math.random() < 0.02) {
-                obstacles.push({ x: canvas.width, y: 160, w: 20, h: 30 });
-            }
+            const size = Math.random() * (50 - 20) + 20;
+            obstacles.push({
+                x: canvas.width,
+                y: canvas.height - size,
+                width: 20,
+                height: size
+            });
         }
 
-        function update() {
-            if (isGameOver) return;
-
-            // Physics
-            if (dino.y + dino.h < canvas.height) {
-                dino.dy += dino.gravity;
+        // Input Handling
+        function jump() {
+            if (dino.grounded) {
+                dino.dy = -dino.jumpForce;
                 dino.grounded = false;
-            } else {
-                dino.dy = 0;
-                dino.grounded = true;
-                dino.y = canvas.height - dino.h;
             }
+            if (isGameOver) restart();
+        }
 
-            // Controls
-            window.onkeydown = (e) => { if (e.code === 'Space' && dino.grounded) dino.dy = -dino.jumpForce; };
+        window.addEventListener('keydown', (e) => { if (e.code === 'Space') jump(); });
+        canvas.addEventListener('touchstart', jump);
 
+        function restart() {
+            score = 0;
+            obstacles.length = 0;
+            isGameOver = false;
+            gameSpeed = 5;
+            animate();
+        }
+
+        function animate() {
+            if (isGameOver) return;
+            requestAnimationFrame(animate);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Gravity & Movement
+            dino.dy += dino.gravity;
             dino.y += dino.dy;
 
-            // Obstacle Logic
+            // 2. Floor Collision
+            if (dino.y + dino.height > canvas.height) {
+                dino.y = canvas.height - dino.height;
+                dino.dy = 0;
+                dino.grounded = true;
+            }
+
+            // 3. Draw Dino (Green Square)
+            ctx.fillStyle = '#2ecc71';
+            ctx.fillRect(dino.x, dino.y, dino.width, dino.height);
+
+            // 4. Handle Obstacles
+            if (Math.random() < 0.01) spawnObstacle();
+
             obstacles.forEach((obs, index) => {
                 obs.x -= gameSpeed;
-                if (obs.x + obs.w < 0) {
-                    obstacles.splice(index, 1);
-                    score++;
+                
+                // Draw Obstacle (Red)
+                ctx.fillStyle = '#e74c3c';
+                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+
+                // Collision Detection
+                if (dino.x < obs.x + obs.width &&
+                    dino.x + dino.width > obs.x &&
+                    dino.y < obs.y + obs.height &&
+                    dino.y + dino.height > obs.y) {
+                    isGameOver = true;
+                    ctx.fillStyle = 'black';
+                    ctx.font = '30px Arial';
+                    ctx.fillText('GAME OVER - Press Space', 250, 100);
                 }
 
-                // Collision Check (AABB)
-                if (dino.x < obs.x + obs.w && dino.x + dino.w > obs.x &&
-                    dino.y < obs.y + obs.h && dino.y + dino.h > obs.y) {
-                    isGameOver = true;
+                // Remove off-screen obstacles & increase score
+                if (obs.x + obs.width < 0) {
+                    obstacles.splice(index, 1);
+                    score++;
+                    gameSpeed += 0.1; // Make it harder
                 }
             });
 
-            spawnObstacle();
-            gameSpeed += 0.001;
+            // 5. UI
+            ctx.fillStyle = '#555';
+            ctx.font = '20px Courier';
+            ctx.fillText(`Score: ${score}`, 700, 30);
         }
 
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Draw Dino
-            ctx.fillStyle = '#535353';
-            ctx.fillRect(dino.x, dino.y, dino.w, dino.h);
-
-            // Draw Obstacles
-            ctx.fillStyle = '#ff4d4d';
-            obstacles.forEach(obs => ctx.fillRect(obs.x, obs.y, obs.w, obs.h));
-
-            // Draw Score
-            ctx.fillStyle = '#535353';
-            ctx.fillText(`SCORE: ${score}`, 530, 20);
-
-            if (isGameOver) ctx.fillText("GAME OVER - Refresh to Restart", 220, 100);
-        }
-
-        function loop() {
-            update();
-            draw();
-            requestAnimationFrame(loop);
-        }
-
-        loop();
+        animate();
     </script>
 </body>
 </html>
